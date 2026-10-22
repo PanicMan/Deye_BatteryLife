@@ -1,0 +1,45 @@
+{
+  "_comment": "Kopie nach config.json. mode je Anlage: Blacklist -> off; in live_allowlist -> live; alles andere dry (nur lesen).",
+  "default_mode": "dry",
+  "_comment_live_allowlist": "Stations-IDs, die tatsächlich geschrieben werden dürfen. Leer = alles nur Dry-Run.",
+  "live_allowlist": [],
+  "_comment_blacklist": "Stations-ID -> 'Name: Grund'. Diese Anlagen werden nie gelesen oder geschrieben.",
+  "blacklist": {},
+  "supported_products": [
+    "0_5411_1"
+  ],
+  "low_soc_threshold": 85,
+  "high_soc_threshold": 95,
+  "step": 5,
+  "min_soc_offset_over_shutdown": 5,
+  "max_soc_cap": 50,
+  "history_hours": 18,
+  "min_history_points": 30,
+  "night_zone": [
+    "00:00",
+    "06:00"
+  ],
+  "min_row_minutes": 30,
+  "workers": 3,
+  "retries": 6,
+  "retry_pause_s": 20,
+  "poll_tries": 25,
+  "poll_pause_s": 3,
+  "health": {
+    "window_hours": 18,
+    "stuck_min_span_hours": 12,
+    "stuck_max_range": 1,
+    "stuck_above_floor": 3,
+    "stuck_max_soc": 95,
+    "stuck_min_load_w": 150,
+    "stuck_min_pv_w": 300,
+    "stuck_max_battery_w": 100,
+    "stale_minutes": 60,
+    "offline_hours": 24,
+    "soc_mismatch": 10,
+    "busy_days": 2,
+    "assumed_floor_soc": 15
+  },
+  "_comment_health_acknowledged": "Stations-ID -> {reason, rules: 'all' oder Liste, until: Datum oder null}. Quittierte Befunde erscheinen nicht als offen.",
+  "health_acknowledged": {}
+}

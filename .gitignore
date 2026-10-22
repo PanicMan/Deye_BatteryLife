@@ -1,0 +1,20 @@
+# Zugangsdaten und betriebliche Konfiguration (enthält Kundennamen/Stations-IDs) - NIE committen
+secrets.json
+config.json
+
+# Laufzeitdaten: Kundenanlagen, Verläufe, Sicherungen
+state/
+logs/
+backups/
+reports/
+data/
+runs.csv
+Gesundheitsbericht.md
+Stationsliste.csv
+*.pid
+run.lock
+
+# Python
+__pycache__/
+*.pyc
+.venv/
