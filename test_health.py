@@ -67,6 +67,30 @@ class Rules(unittest.TestCase):
         self.assertEqual(rules(series=s, battery=[800.0] * 190, station_status="PARTIAL_OFFLINE"), ["station_status"])
 
 
+class Languages(unittest.TestCase):
+    def test_every_german_text_has_an_english_one(self):
+        self.assertEqual(set(health.T["de"]), set(health.T["en"]))
+        self.assertEqual(set(health.T["de"]["rules"]), set(health.T["en"]["rules"]))
+
+    def test_detail_language(self):
+        de = health.evaluate(inp(), H)[0][1]
+        en = health.evaluate(inp(), H, "en")[0][1]
+        self.assertIn("konstant", de)
+        self.assertIn("constant", en)
+
+    def test_render_english(self):
+        entries = [{"station": "S", "station_id": "1", "sn": "x", "findings": [
+            {"rule": "stuck_battery", "detail": "d", "since": "2026-10-22", "acked": False, "note": ""}]}]
+        meta = {"time": "t", "units": 1, "stations": 1, "health": H, "lang": "en", "new": [], "no_inverter": []}
+        text = health.render(entries, meta, {}, "2026-10-22")
+        self.assertIn("# Deye station health report", text)
+        self.assertIn("Battery not moving", text)
+        self.assertNotIn("Offen", text)
+
+    def test_unknown_language_falls_back_to_german(self):
+        self.assertIs(health.tr("fr"), health.T["de"])
+
+
 class Acks(unittest.TestCase):
     ACKS = {"1": {"reason": "ok", "rules": ["stuck_battery"], "until": None}, "2": {"reason": "hold", "rules": "all", "until": "2026-10-25"}}
 

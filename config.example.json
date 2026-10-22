@@ -1,6 +1,8 @@
 {
   "_comment": "Kopie nach config.json. mode je Anlage: Blacklist -> off; in live_allowlist -> live; alles andere dry (nur lesen).",
   "default_mode": "dry",
+  "_comment_report_language": "Sprache des Gesundheitsberichts / language of the health report: de (Gesundheitsbericht.md) or en (health_report.md)",
+  "report_language": "de",
   "_comment_live_allowlist": "Stations-IDs, die tatsächlich geschrieben werden dürfen. Leer = alles nur Dry-Run.",
   "live_allowlist": [],
   "_comment_blacklist": "Stations-ID -> 'Name: Grund'. Diese Anlagen werden nie gelesen oder geschrieben.",

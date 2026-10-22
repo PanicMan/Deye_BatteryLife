@@ -329,15 +329,16 @@ def track_new_stations(stations, fleet_units, cfg, today, partial):
     if not partial:
         path.write_text(json.dumps(known, indent=1), encoding="utf-8")
     prod = {u["station_id"]: u["product"] for u in fleet_units}
+    lang = cfg.get("report_language", "de")
     new = []
     for sid, since in known.items():
         if sid in stations and since != "baseline" and (dt.date.fromisoformat(today) - dt.date.fromisoformat(since)).days < cfg["health"].get("new_station_days", 14):
             if sid in cfg["blacklist"]:
-                note = "Blacklist"
+                note = health.tr(lang)["note_blacklist"]
             elif prod.get(sid) not in cfg["supported_products"]:
-                note = "Typ %s nicht unterstützt" % prod.get(sid)
+                note = health.tr(lang)["note_type"] % prod.get(sid)
             else:
-                note = "Dry-Run; in live_allowlist eintragen zum Scharfschalten"
+                note = health.tr(lang)["note_dry"]
             new.append({"name": stations[sid], "id": sid, "since": since, "note": note})
     with_inv = {u["station_id"] for u in fleet_units}
     no_inv = [{"name": stations[sid], "id": sid} for sid in stations if sid not in with_inv]
@@ -346,6 +347,7 @@ def track_new_stations(stations, fleet_units, cfg, today, partial):
 
 def run_health(units, stations, tok, cfg, today, fleet_units=None, partial=False):
     h, acks, now = cfg["health"], cfg.get("health_acknowledged", {}), int(time.time())
+    lang = cfg.get("report_language", "de")
     new_stations, no_inverter = track_new_stations(stations, fleet_units or units, cfg, today, partial)
     latest = {}
     online = [u for u in units if u["online"]]
@@ -381,7 +383,7 @@ def run_health(units, stations, tok, cfg, today, fleet_units=None, partial=False
                             inp["series"].append((int(d["time"]), v))
                         else:
                             inp[{"BatteryPower": "battery", "TotalSolarPower": "pv", "TotalConsumptionPower": "load"}[it["key"]]].append(v)
-            found = health.evaluate(inp, h)
+            found = health.evaluate(inp, h, lang)
         except Exception as e:
             found = [("check_failed", "%s: %s" % (type(e).__name__, str(e)[:120]))]
         first = state.get("health", {})
@@ -389,21 +391,22 @@ def run_health(units, stations, tok, cfg, today, fleet_units=None, partial=False
         state_file.write_text(json.dumps(state, indent=1), encoding="utf-8")
         fs = []
         for rule, detail in found:
-            acked, note = health.ack_for(acks, u["station_id"], rule, today)
+            acked, note = health.ack_for(acks, u["station_id"], rule, today, lang)
             fs.append({"rule": rule, "detail": detail, "since": state["health"][rule], "acked": acked, "note": note})
         return {"station": u["name"], "station_id": u["station_id"], "sn": sn, "findings": fs}
 
     with ThreadPoolExecutor(max_workers=cfg["workers"] + 1) as ex:
         entries = list(ex.map(check, units))
     meta = {"time": dt.datetime.now().strftime("%d.%m.%Y %H:%M"), "units": len(units), "stations": len({u["station_id"] for u in units}),
-            "health": h, "new": new_stations, "no_inverter": no_inverter}
+            "health": h, "lang": lang, "new": new_stations, "no_inverter": no_inverter}
     text = health.render(entries, meta, acks, today)
     (ROOT / "reports").mkdir(exist_ok=True)
-    (ROOT / "Gesundheitsbericht.md").write_text(text, encoding="utf-8")
+    report_name = health.REPORT_FILES.get(lang, health.REPORT_FILES["de"])
+    (ROOT / report_name).write_text(text, encoding="utf-8")
     (ROOT / "reports" / ("health_%s.md" % today)).write_text(text, encoding="utf-8")
     open_names = sorted({e["station"] for e in entries if any(not f["acked"] for f in e["findings"])})
-    log.info("HEALTH: %d Anlagen mit offenen Befunden (%s), %d quittierte Befunde -> Gesundheitsbericht.md", len(open_names),
-             ", ".join(open_names) or "-", sum(1 for e in entries for f in e["findings"] if f["acked"]))
+    log.info("HEALTH: %d stations with open findings (%s), %d acknowledged findings -> %s", len(open_names),
+             ", ".join(open_names) or "-", sum(1 for e in entries for f in e["findings"] if f["acked"]), report_name)
 
 
 def write_runs(rows):

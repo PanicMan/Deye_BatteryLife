@@ -20,7 +20,7 @@ Voraussetzung: Python 3.10+ (nur Standardbibliothek, keine Pakete nötig).
 
 **Sicherheit:** Der API-Zugang steuert die Batterieeinstellungen aller Kundenanlagen. Nicht ins Repository, nicht in Chats oder Tickets, nicht weitergeben.
 Im Repository liegen bewusst nur Code und Beispiel-Konfigurationen. Kundennamen, Stations-IDs, Verläufe und Sicherungen
-(`config.json`, `state/`, `logs/`, `backups/`, `reports/`, `data/`, `runs.csv`, `Stationsliste.csv`, `Gesundheitsbericht.md`) stehen in `.gitignore`.
+(`config.json`, `state/`, `logs/`, `backups/`, `reports/`, `data/`, `runs.csv`, `Stationsliste.csv`, `Gesundheitsbericht.md`, `health_report.md`) stehen in `.gitignore`.
 
 ## Was passiert täglich (Task Scheduler)
 
@@ -38,7 +38,7 @@ Grenzen: Abschalt-SoC + 5 bis 50 %. Netzladung nur in TOU-Zeilen, die ganz im Na
 
 | Datei | Zweck |
 |---|---|
-| `Gesundheitsbericht.md` | **Hier nachsehen**: offene Befunde je Anlage (wird bei jedem Hauptlauf neu geschrieben, Archiv in `reports/`) |
+| `Gesundheitsbericht.md` | **Hier nachsehen**: offene Befunde je Anlage (wird bei jedem Hauptlauf neu geschrieben, Archiv in `reports/`). Mit `"report_language": "en"` in `config.json` entsteht stattdessen `health_report.md` auf Englisch. |
 | `config.json` | Schwellen, `live_allowlist`, `blacklist`, `health`, `health_acknowledged` |
 | `runs.csv`, `logs/` | Verlauf und Tageslog jedes Laufs |
 | `backups/<Datum>/<SN>.json` | TOU-Tabelle vor jeder Änderung (Rollback) |
