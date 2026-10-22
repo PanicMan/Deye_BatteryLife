@@ -22,7 +22,7 @@ Once a day (default 18:00) it looks at every inverter of your DeyeCloud organisa
 - Every change is read back from the inverter and verified; the previous TOU table is saved first (rollback).
 - Stations run as **dry-run** (read and log only) unless their ID is in `live_allowlist`. Blacklisted stations are never touched.
 
-A second part writes a **health report** (`Gesundheitsbericht.md`, written in German for now) for *all* stations without sending any command to the inverters: battery not moving, inverter offline, stale data, SoC mismatch between inverter and BMS, commands not answered for several days. Known findings can be acknowledged in the config; new stations are listed for 14 days.
+A second part writes a **health report** (`Gesundheitsbericht.md` in German by default; set `"report_language": "en"` in `config.json` to get `health_report.md` in English) for *all* stations without sending any command to the inverters: battery not moving, inverter offline, stale data, SoC mismatch between inverter and BMS, commands not answered for several days. Known findings can be acknowledged in the config; new stations are listed for 14 days.
 
 ## Setup
 
@@ -37,7 +37,7 @@ Requirements: Python 3.10+ (no packages needed).
 
 **Security:** the API access can change battery settings of every station in the organisation. Never put it in the repository, chats or tickets.
 Only code and example configs are versioned; customer names, station IDs, histories and backups
-(`config.json`, `state/`, `logs/`, `backups/`, `reports/`, `data/`, `runs.csv`, `Stationsliste.csv`, `Gesundheitsbericht.md`) are in `.gitignore`.
+(`config.json`, `state/`, `logs/`, `backups/`, `reports/`, `data/`, `runs.csv`, `Stationsliste.csv`, `Gesundheitsbericht.md`, `health_report.md`) are in `.gitignore`.
 
 ## Scheduled tasks
 
@@ -59,7 +59,7 @@ The computer has to be running and the user account that registered the tasks ha
 | `secrets.json` (local) | credentials |
 | `runs.csv`, `logs/`, `state/<SN>.json` (local) | run history, daily log, per-inverter state |
 | `backups/<date>/<SN>.json` (local) | TOU table before each change |
-| `Gesundheitsbericht.md` (local) | health report, archive in `reports/` |
+| `Gesundheitsbericht.md` / `health_report.md` (local) | health report (language set by `report_language`), archive in `reports/` |
 
 ## Common tasks
 
