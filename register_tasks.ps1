@@ -9,7 +9,9 @@ $env:PYTHONUTF8 = "1"
 
 function New-Job($name, $argsLine, $times) {
     $action   = New-ScheduledTaskAction -Execute $python -Argument "batterylife.py $argsLine" -WorkingDirectory $root
-    $triggers = $times | ForEach-Object { New-ScheduledTaskTrigger -Daily -At $_ }
+    # StartBoundary without UTC offset = local time, so the job keeps its wall-clock time across daylight saving changes
+    $day      = (Get-Date).ToString('yyyy-MM-dd')
+    $triggers = $times | ForEach-Object { $t = New-ScheduledTaskTrigger -Daily -At $_; $t.StartBoundary = "${day}T${_}:00"; $t }
     $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew `
                   -ExecutionTimeLimit (New-TimeSpan -Hours 2) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
     Register-ScheduledTask -TaskName $name -Action $action -Trigger $triggers -Settings $settings `
