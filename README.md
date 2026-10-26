@@ -65,6 +65,7 @@ The computer has to be running and the user account that registered the tasks ha
 
 - **Switch a station live:** add its station ID to `live_allowlist`.
 - **Exclude a station** (the owner manages it) : add its ID with a reason to `blacklist`. Nothing is read or written; only the health report still looks at its history data.
+- **Hide a single inverter completely** (e.g. a second inverter without battery in the same station): add its serial number with a reason to `ignored_devices`. It is skipped everywhere (no adjustment, not in the health report); the other inverters of the station run normally.
 - **Acknowledge a finding:** add to `health_acknowledged`:
   `"<StationID>": {"reason": "...", "rules": "all" | ["stuck_battery"], "until": "2026-12-31" | null}`.
   With `until` the finding shows up as open again after that date.

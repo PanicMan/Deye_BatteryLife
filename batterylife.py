@@ -266,7 +266,14 @@ def main():
 def run(cfg, secrets, args, today):
     tok = api.business_token(secrets)
     units, stations = fetch_units(tok, cfg)
-    log.info("fleet: %d stations, %d inverters", len(stations), len(units))
+    ignored = cfg.get("ignored_devices", {})
+    units, partial_stations, missing = logic.apply_ignored(units, ignored)
+    for sn in missing:
+        log.warning("ignored device %s (%s) not found in fleet any more", sn, ignored[sn])
+    for u in units:  # a station with an ignored (e.g. offline, battery-less) inverter is never fully NORMAL
+        if u["station_id"] in partial_stations:
+            u["station_status"] = None
+    log.info("fleet: %d stations, %d inverters (%d ignored)", len(stations), len(units), len(ignored) - len(missing))
     blacklist, allow = cfg["blacklist"], set(cfg["live_allowlist"])
     only = {x.strip() for x in args.only.split(",") if x.strip()}
     for sid in blacklist:

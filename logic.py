@@ -68,3 +68,14 @@ def build_items(items, new_soc, flags):
 def same_table(a, b):
     keys = ("time", "soc", "enableGridCharge", "power", "voltage")
     return len(a) == len(b) and all(all(x[k] == y[k] for k in keys) for x, y in zip(a, b))
+
+
+def apply_ignored(units, ignored):
+    """Drop individual inverters (by serial number) from every part of the run.
+
+    Returns (kept_units, stations_with_ignored_inverters, ignored_serials_not_found).
+    """
+    kept = [u for u in units if u["sn"] not in ignored]
+    stations = {u["station_id"] for u in units if u["sn"] in ignored}
+    missing = sorted(set(ignored) - {u["sn"] for u in units})
+    return kept, stations, missing
