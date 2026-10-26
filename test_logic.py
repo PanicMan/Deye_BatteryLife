@@ -79,5 +79,22 @@ class Build(unittest.TestCase):
         self.assertFalse(logic.same_table(self.ITEMS, logic.build_items(self.ITEMS, 20, None)))
 
 
+class Ignored(unittest.TestCase):
+    UNITS = [{"station_id": "1", "sn": "A"}, {"station_id": "1", "sn": "B"}, {"station_id": "2", "sn": "C"}]
+
+    def test_ignored_device_disappears_but_station_is_marked(self):
+        kept, stations, missing = logic.apply_ignored(self.UNITS, {"B": "no battery"})
+        self.assertEqual([u["sn"] for u in kept], ["A", "C"])
+        self.assertEqual(stations, {"1"})
+        self.assertEqual(missing, [])
+
+    def test_unknown_serial_is_reported(self):
+        self.assertEqual(logic.apply_ignored(self.UNITS, {"Z": "gone"})[2], ["Z"])
+
+    def test_nothing_ignored(self):
+        kept, stations, missing = logic.apply_ignored(self.UNITS, {})
+        self.assertEqual((len(kept), stations, missing), (3, set(), []))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

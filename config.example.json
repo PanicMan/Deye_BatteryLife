@@ -7,6 +7,8 @@
   "live_allowlist": [],
   "_comment_blacklist": "Stations-ID -> 'Name: Grund'. Diese Anlagen werden nie gelesen oder geschrieben.",
   "blacklist": {},
+  "_comment_ignored_devices": "Seriennummer eines einzelnen Wechselrichters -> Grund. Wird komplett ausgeblendet (keine Anpassung, kein Gesundheitsbericht), der Rest der Station läuft normal. Z.B. ein Wechselrichter ohne Akku.",
+  "ignored_devices": {},
   "supported_products": [
     "0_5411_1"
   ],

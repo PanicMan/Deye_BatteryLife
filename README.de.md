@@ -50,6 +50,7 @@ Grenzen: Abschalt-SoC + 5 bis 50 %. Netzladung nur in TOU-Zeilen, die ganz im Na
 
 - **Anlage scharf schalten**: Stations-ID in `live_allowlist` eintragen. Alles andere läuft nur als Dry-Run (liest und protokolliert).
 - **Anlage ausnehmen** (Kunde kümmert sich selbst): Stations-ID mit Grund unter `blacklist` eintragen. Es wird nichts gelesen oder geschrieben, nur der Gesundheitsbericht prüft weiter (nur Lesen von Verlaufsdaten).
+- **Einzelnen Wechselrichter komplett ausblenden** (z. B. zweiter Wechselrichter ohne Akku in derselben Station): Seriennummer mit Grund unter `ignored_devices` eintragen. Er wird überall übersprungen (keine Anpassung, nicht im Gesundheitsbericht), die übrigen Wechselrichter der Station laufen normal.
 - **Befund quittieren** (bekannt, soll nicht mehr als offen erscheinen): unter `health_acknowledged` eintragen:
   `"<StationID>": {"reason": "...", "rules": "all" | ["stuck_battery"], "until": "2026-12-31" | null}`.
   Mit `until` taucht der Befund nach Ablauf wieder als offen auf.
