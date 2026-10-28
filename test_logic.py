@@ -60,6 +60,16 @@ class GridCharge(unittest.TestCase):
         self.assertIsNone(self.p(["01:00"] * 6))
 
 
+class GridChargeAll(unittest.TestCase):
+    def test_all_rows_on_for_any_table(self):  # also for tables that cannot be interpreted
+        for times in (REG, ["04:00", "00:00", "03:55", "03:55", "03:55", "03:55"], ["00:00", "23:55", "00:00", "13:00", "17:00", "21:00"],
+                      ["03:00", "07:00", "09:00", "12:00", "16:00", "23:00"]):
+            self.assertEqual(logic.plan_grid_charge(times, ZONE, MINROW, "all"), ([True] * 6, ""))
+
+    def test_night_is_still_the_default_of_the_function(self):
+        self.assertEqual(logic.plan_grid_charge(REG, ZONE, MINROW)[0], [True, False, False, False, False, False])
+
+
 class Build(unittest.TestCase):
     ITEMS = [{"time": t, "power": 10000, "voltage": 49, "soc": 15, "enableGridCharge": True,
               "enableGeneration": False, "enableSell": False} for t in REG]

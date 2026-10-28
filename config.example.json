@@ -15,6 +15,8 @@
   "low_soc_threshold": 85,
   "high_soc_threshold": 95,
   "step": 5,
+  "_comment_grid_charge": "all = Netzladung in allen TOU-Zeilen (nötig für die BMS-Notladung zu jeder Tageszeit), night = nur in Zeilen im night_zone",
+  "grid_charge": "all",
   "_comment_fault_block_min_level": "Stationen mit offener Störung ab dieser Stufe (oder Batteriespannung unter health.battery_voltage_min) bekommen keine Anpassung.",
   "fault_block_min_level": 2,
   "min_soc_offset_over_shutdown": 5,

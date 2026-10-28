@@ -18,7 +18,7 @@ Once a day (default 18:00) it looks at every inverter of your DeyeCloud organisa
 | 95 % or more | −5 points |
 
 - Limits: *shutdown SoC + 5* up to a configurable cap (default 50 %).
-- Grid charging is only allowed in TOU rows that lie completely inside the night zone (default 00:00–06:00); in all other rows it is switched off. Unusual but valid time tables are handled by their night rows; tables that cannot be interpreted (overlapping rows) keep their grid-charge flags, only the SoC is adjusted.
+- Grid charging is switched on in **all** TOU rows (`"grid_charge": "all"`, default), so the battery's emergency charge after a cell under-voltage works at any time of day. With `"night"` it is only allowed in rows that lie completely inside the night zone (default 00:00–06:00). Unusual but valid time tables are handled by their night rows; tables that cannot be interpreted (overlapping rows) keep their grid-charge flags, only the SoC is adjusted.
 - Stations with an open fault of level 2 or higher (or an implausible battery voltage) are not adjusted until the fault is gone (`fault_block_min_level`).
 - Every change is read back from the inverter and verified; the previous TOU table is saved first (rollback).
 - Stations run as **dry-run** (read and log only) unless their ID is in `live_allowlist`. Blacklisted stations are never touched.
