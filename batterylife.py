@@ -238,7 +238,7 @@ def _decide_and_apply(u, tok, cfg, mode, today, tou, regs, items, times, row, st
     row["max_soc"] = max(hist)
     new, why = logic.decide_soc(cur, max(hist), user_min, cfg["max_soc_cap"], cfg["low_soc_threshold"],
                                 cfg["high_soc_threshold"], cfg["step"])
-    flags, gc_note = logic.plan_grid_charge(times, cfg["night_zone"], cfg["min_row_minutes"])
+    flags, gc_note = logic.plan_grid_charge(times, cfg["night_zone"], cfg["min_row_minutes"], cfg.get("grid_charge", "all"))
     new_items = logic.build_items(items, new, flags)
     row["new"] = new
     notes = [why] + ([gc_note] if gc_note else [])

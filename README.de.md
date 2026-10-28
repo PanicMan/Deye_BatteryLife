@@ -34,7 +34,7 @@ Der Rechner muss laufen und das Benutzerkonto, unter dem die Aufgaben registrier
 **Schutz:** Stationen mit offener Störung ab Stufe 2 (`fault_block_min_level`) oder unplausibler Batteriespannung werden nicht angepasst, bis der Befund weg ist.
 
 **Regel** (Maximum SoC der letzten 18 h): unter 85 % → Mindest-SoC +5, 85–94 % → bleibt, ab 95 % → −5.
-Grenzen: Abschalt-SoC + 5 bis 50 %. Netzladung nur in TOU-Zeilen, die ganz im Nachtfenster (00:00–06:00) liegen.
+Grenzen: Abschalt-SoC + 5 bis 50 %. Netzladung standardmäßig in **allen** TOU-Zeilen (`"grid_charge": "all"`), damit die Notladung des Akkus bei Zellunterspannung zu jeder Tageszeit funktioniert. Mit `"night"` nur in TOU-Zeilen, die ganz im Nachtfenster (00:00–06:00) liegen.
 
 ## Dateien
 

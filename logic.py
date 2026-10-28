@@ -29,13 +29,18 @@ def decide_soc(current, max_soc, user_min, cap, low_thr, high_thr, step):
     return new, why
 
 
-def plan_grid_charge(times, zone, min_row_minutes):
-    """Grid-charge flags per TOU row: on only for rows lying completely inside the night zone.
+def plan_grid_charge(times, zone, min_row_minutes, mode="night"):
+    """Grid-charge flags per TOU row.
+
+    mode "all":   grid charging in every row (needed for the BMS emergency charge at any time of day).
+    mode "night": on only for rows lying completely inside the night zone.
 
     TOU row i is active from times[i] until times[i+1] (cyclic, wrapping at midnight).
     Returns (flags, note). flags is None when the table cannot be interpreted or no row
     fits the night zone - the caller then leaves the existing flags untouched.
     """
+    if mode == "all":
+        return [True] * len(times), ""
     t = [hm_to_min(x) for x in times]
     n = len(t)
     lens = [(t[(i + 1) % n] - t[i]) % 1440 for i in range(n)]
