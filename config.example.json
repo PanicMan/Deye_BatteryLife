@@ -15,6 +15,8 @@
   "low_soc_threshold": 85,
   "high_soc_threshold": 95,
   "step": 5,
+  "_comment_fault_block_min_level": "Stationen mit offener Störung ab dieser Stufe (oder Batteriespannung unter health.battery_voltage_min) bekommen keine Anpassung.",
+  "fault_block_min_level": 2,
   "min_soc_offset_over_shutdown": 5,
   "max_soc_cap": 50,
   "history_hours": 18,

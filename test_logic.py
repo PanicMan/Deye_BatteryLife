@@ -96,5 +96,22 @@ class Ignored(unittest.TestCase):
         self.assertEqual((len(kept), stations, missing), (3, set(), []))
 
 
+class FaultGuard(unittest.TestCase):
+    F56 = {"name": "F56 DC_VoltLow_Fault", "level": 2}
+
+    def test_serious_alert_blocks(self):
+        self.assertIn("F56", logic.fault_reason([self.F56], 51.0, 40, 2))
+
+    def test_minor_alert_does_not_block(self):
+        self.assertEqual(logic.fault_reason([{"name": "grid warning", "level": 1}], 51.0, 40, 2), "")
+
+    def test_low_voltage_blocks_even_without_alert(self):
+        self.assertIn("7.5 V", logic.fault_reason([], 7.5, 40, 2))
+
+    def test_healthy_station(self):
+        self.assertEqual(logic.fault_reason([], 52.3, 40, 2), "")
+        self.assertEqual(logic.fault_reason([], None, 40, 2), "")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
