@@ -42,7 +42,9 @@
     "offline_hours": 24,
     "soc_mismatch": 10,
     "busy_days": 2,
-    "assumed_floor_soc": 15
+    "assumed_floor_soc": 15,
+    "alert_days": 7,
+    "battery_voltage_min": 40
   },
   "_comment_health_acknowledged": "Stations-ID -> {reason, rules: 'all' oder Liste, until: Datum oder null}. Quittierte Befunde erscheinen nicht als offen.",
   "health_acknowledged": {}

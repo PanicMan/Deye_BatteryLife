@@ -364,7 +364,8 @@ def run_health(units, stations, tok, cfg, today, fleet_units=None, partial=False
             r = with_retry(lambda: api.call("/v1.0/device/latest", {"deviceList": [u["sn"] for u in batch]}, tok), cfg, "latest data")
             for d in r.get("deviceDataList") or []:
                 m = {k["key"]: k["value"] for k in d["dataList"]}
-                latest[d["deviceSn"]] = {"time": d.get("collectionTime"), "soc": _num(m.get("SOC")), "bms": _num(m.get("BMSSOC"))}
+                latest[d["deviceSn"]] = {"time": d.get("collectionTime"), "soc": _num(m.get("SOC")), "bms": _num(m.get("BMSSOC")),
+                                         "state": d.get("deviceState"), "volt": _num(m.get("BatteryVoltage"))}
         except Exception as e:
             log.warning("health: latest data batch failed: %s", str(e)[:100])
 
@@ -374,10 +375,18 @@ def run_health(units, stations, tok, cfg, today, fleet_units=None, partial=False
         lt = latest.get(sn, {})
         inp = {"now": now, "online": u["online"], "station_status": u["station_status"], "series": [], "pv": [], "load": [],
                "battery": [], "soc_now": lt.get("soc"), "bms_soc": lt.get("bms"), "busy_streak": state.get("busy_streak", 0),
+               "alerts": [], "device_state": lt.get("state"), "battery_voltage": lt.get("volt"),
                "collection_time": lt.get("time") or u.get("collection_time"),
                "floor": (state["shutdown"] + cfg["min_soc_offset_over_shutdown"]) if "shutdown" in state else None}
         try:
             if u["online"]:
+                al = with_retry(lambda: api.call("/v1.0/device/alertList?language=en", {
+                    "deviceSn": sn, "startTimestamp": now - h.get("alert_days", 7) * 86400, "endTimestamp": now,
+                    "page": 1, "size": 100}, tok), cfg, "alerts")
+                for a in al.get("alertList") or []:
+                    if not a.get("alertEndTime"):  # not closed by DeyeCloud yet
+                        inp["alerts"].append({"name": a.get("alertName"), "level": a.get("level"),
+                                              "since": time.strftime("%d.%m. %H:%M", time.localtime(int(a["alertStartTime"])))})
                 r = with_retry(lambda: api.call("/v1.0/device/historyRaw", {
                     "deviceSn": sn, "startTimestamp": now - h["window_hours"] * 3600, "endTimestamp": now,
                     "measurePoints": ["SOC", "BatteryPower", "TotalSolarPower", "TotalConsumptionPower"]}, tok), cfg, "health history")
