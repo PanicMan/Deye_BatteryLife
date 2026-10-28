@@ -79,3 +79,16 @@ def apply_ignored(units, ignored):
     stations = {u["station_id"] for u in units if u["sn"] in ignored}
     missing = sorted(set(ignored) - {u["sn"] for u in units})
     return kept, stations, missing
+
+
+def fault_reason(alerts, voltage, voltage_min, min_level):
+    """Why a station must not get an SoC adjustment right now ('' = fine).
+
+    alerts: open (not closed) DeyeCloud alerts [{name, level}]; voltage: battery voltage in V or None.
+    """
+    serious = [a for a in alerts if (a.get("level") or 0) >= min_level]
+    if serious:
+        return "; ".join("%s (level %s)" % (a["name"], a["level"]) for a in serious)
+    if voltage is not None and voltage < voltage_min:
+        return "battery voltage %.1f V below %s V" % (voltage, voltage_min)
+    return ""

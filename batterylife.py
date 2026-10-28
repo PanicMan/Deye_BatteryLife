@@ -38,6 +38,10 @@ class Busy(Exception):
     """Station could not be reached in time (lock held, order pending, gateway errors)."""
 
 
+class Skip(Exception):
+    """Station is deliberately left alone this run; the message is the reason."""
+
+
 # ---------------------------------------------------------------- API helpers
 def with_retry(fn, cfg, what):
     last = "no attempt"
@@ -85,6 +89,27 @@ def read_regs(tok, sn, cfg):
     if n != 200 or len(data) != 400:
         raise RuntimeError("unexpected modbus answer length %d" % n)
     return {100 + i: int(data[i * 4:i * 4 + 4], 16) for i in range(100)}
+
+
+def open_alerts(tok, sn, days, cfg):
+    """Alerts of the last `days` days that DeyeCloud has not closed yet."""
+    now = int(time.time())
+    r = with_retry(lambda: api.call("/v1.0/device/alertList?language=en", {
+        "deviceSn": sn, "startTimestamp": now - days * 86400, "endTimestamp": now, "page": 1, "size": 100}, tok), cfg, "alerts")
+    return [{"name": a.get("alertName"), "level": a.get("level"), "start": int(a["alertStartTime"])}
+            for a in r.get("alertList") or [] if not a.get("alertEndTime")]
+
+
+def battery_voltage(tok, sn, cfg):
+    r = with_retry(lambda: api.call("/v1.0/device/latest", {"deviceList": [sn]}, tok), cfg, "latest data")
+    for d in r.get("deviceDataList") or []:
+        for k in d["dataList"]:
+            if k["key"] == "BatteryVoltage":
+                try:
+                    return float(k["value"])
+                except (TypeError, ValueError):
+                    return None
+    return None
 
 
 def history_soc(tok, sn, hours, cfg):
@@ -160,6 +185,10 @@ def process(u, tok, cfg, mode, today, state_dir, backup_dir, retry=False):
         if retry and state.get("last_run", "")[:10] == today and state.get("last_result") not in ("busy", "error"):
             row.update(result="done-today", note="retry pass: already handled today (%s)" % state.get("last_result"))
             return row
+        fault = logic.fault_reason(open_alerts(tok, u["sn"], cfg["health"].get("alert_days", 7), cfg), battery_voltage(tok, u["sn"], cfg),
+                                   cfg["health"].get("battery_voltage_min", 40), cfg.get("fault_block_min_level", 2))
+        if fault:
+            raise Skip("active fault, no adjustment: %s" % fault)
         tou, regs = read_tou(tok, u["sn"], cfg), read_regs(tok, u["sn"], cfg)
         items = tou["timeUseSettingItems"]
         times = [i["time"] for i in items]
@@ -176,6 +205,8 @@ def process(u, tok, cfg, mode, today, state_dir, backup_dir, retry=False):
             row.update(result="skipped", note="SoC differs between TOU rows %s" % socs)
         else:
             _decide_and_apply(u, tok, cfg, mode, today, tou, regs, items, times, row, state, backup_dir)
+    except Skip as e:
+        row.update(result="skipped", note=str(e))
     except Busy as e:
         row.update(result="busy", note=str(e))
     except Exception as e:
@@ -380,13 +411,9 @@ def run_health(units, stations, tok, cfg, today, fleet_units=None, partial=False
                "floor": (state["shutdown"] + cfg["min_soc_offset_over_shutdown"]) if "shutdown" in state else None}
         try:
             if u["online"]:
-                al = with_retry(lambda: api.call("/v1.0/device/alertList?language=en", {
-                    "deviceSn": sn, "startTimestamp": now - h.get("alert_days", 7) * 86400, "endTimestamp": now,
-                    "page": 1, "size": 100}, tok), cfg, "alerts")
-                for a in al.get("alertList") or []:
-                    if not a.get("alertEndTime"):  # not closed by DeyeCloud yet
-                        inp["alerts"].append({"name": a.get("alertName"), "level": a.get("level"),
-                                              "since": time.strftime("%d.%m. %H:%M", time.localtime(int(a["alertStartTime"])))})
+                for a in open_alerts(tok, sn, h.get("alert_days", 7), cfg):
+                    inp["alerts"].append({"name": a["name"], "level": a["level"],
+                                          "since": time.strftime("%d.%m. %H:%M", time.localtime(a["start"]))})
                 r = with_retry(lambda: api.call("/v1.0/device/historyRaw", {
                     "deviceSn": sn, "startTimestamp": now - h["window_hours"] * 3600, "endTimestamp": now,
                     "measurePoints": ["SOC", "BatteryPower", "TotalSolarPower", "TotalConsumptionPower"]}, tok), cfg, "health history")
