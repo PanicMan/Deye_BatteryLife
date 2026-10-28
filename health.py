@@ -9,12 +9,15 @@ T = {
         "rules": {"no_data": "Keine Daten", "offline": "Wechselrichter offline", "station_status": "Station nicht NORMAL",
                   "stale_data": "Daten veraltet", "stuck_battery": "Akku bewegt sich nicht",
                   "soc_mismatch": "SoC-Abweichung Wechselrichter/BMS", "commands": "Befehle gehen nicht durch",
-                  "check_failed": "Prüfung fehlgeschlagen"},
+                  "check_failed": "Prüfung fehlgeschlagen", "active_alert": "Aktive Störung/Warnung",
+                  "device_state": "Wechselrichter im Alarmzustand", "battery_voltage": "Batteriespannung unplausibel"},
         "last_data": "letzte Daten vor %s", "unknown_time": "unbekannter Zeit", "stale": "letzter Datenpunkt vor %.0f min",
         "status": "Status %s", "commands": "Befehle seit %d Tagen ohne Antwort (Datenlogger/Wechselrichter reagiert nicht)",
         "no_history": "keine SoC-Verlaufsdaten der letzten %d h",
         "stuck": "SoC %d%% konstant über %.0f h, Batterieleistung max %.0f W, Last Ø %.0f W, PV max %.0f W",
         "mismatch": "Wechselrichter %s%% / BMS %s%%", "ack_expired": "Quittierung abgelaufen (%s): %s",
+        "alert": "%s (Stufe %s, seit %s)", "state": "Gerätestatus %s (Alarm), aber keine Störung abrufbar",
+        "voltage": "Batteriespannung %.1f V (erwartet mindestens %s V)",
         "summary": "Stand: %s · geprüft: %d Wechselrichter in %d Stationen · **offen: %d Anlagen** · quittiert: %d Befunde",
         "h_open": "Offen", "none_open": "Keine offenen Befunde.", "cols_open": ["Anlage", "Befund", "Details", "seit"],
         "day": "%s (%d. Tag)",
@@ -26,6 +29,8 @@ T = {
         "r_offline": "- **Offline / Daten veraltet**: Wechselrichter länger als %(offline_hours)s h offline bzw. letzter Datenpunkt älter als %(stale_minutes)s min.",
         "r_commands": "- **Befehle gehen nicht durch**: mindestens %(busy_days)s Tage hintereinander keine Antwort auf Lesebefehle.",
         "r_mismatch": "- **SoC-Abweichung**: Wechselrichter-SoC und BMS-SoC weichen um mindestens %(soc_mismatch)s Punkte ab.",
+        "r_alert": "- **Aktive Störung/Warnung**: eine in der DeyeCloud noch nicht beendete Störung der letzten %(alert_days)s Tage, oder Gerätestatus Alarm.",
+        "r_voltage": "- **Batteriespannung unplausibel**: unter %(battery_voltage_min)s V.",
         "r_ack": "- Quittieren: Eintrag unter `health_acknowledged` in `config.json` (Station-ID, Grund, optional `until`).",
         "note_blacklist": "Blacklist", "note_type": "Typ %s nicht unterstützt",
         "note_dry": "Dry-Run; in live_allowlist eintragen zum Scharfschalten",
@@ -35,12 +40,15 @@ T = {
         "rules": {"no_data": "No data", "offline": "Inverter offline", "station_status": "Station not NORMAL",
                   "stale_data": "Data outdated", "stuck_battery": "Battery not moving",
                   "soc_mismatch": "SoC mismatch inverter/BMS", "commands": "Commands not answered",
-                  "check_failed": "Check failed"},
+                  "check_failed": "Check failed", "active_alert": "Active fault/warning",
+                  "device_state": "Inverter in alarm state", "battery_voltage": "Battery voltage implausible"},
         "last_data": "last data %s ago", "unknown_time": "an unknown time", "stale": "last data point %.0f min ago",
         "status": "status %s", "commands": "no answer to commands for %d days (data logger/inverter not responding)",
         "no_history": "no SoC history for the last %d h",
         "stuck": "SoC constant at %d%% for %.0f h, battery power max %.0f W, load avg %.0f W, PV max %.0f W",
         "mismatch": "inverter %s%% / BMS %s%%", "ack_expired": "acknowledgement expired (%s): %s",
+        "alert": "%s (level %s, since %s)", "state": "device state %s (alarm), but no fault retrievable",
+        "voltage": "battery voltage %.1f V (expected at least %s V)",
         "summary": "As of: %s · checked: %d inverters in %d stations · **open: %d stations** · acknowledged: %d findings",
         "h_open": "Open", "none_open": "No open findings.", "cols_open": ["Station", "Finding", "Details", "since"],
         "day": "%s (day %d)",
@@ -52,6 +60,8 @@ T = {
         "r_offline": "- **Offline / outdated data**: inverter offline for more than %(offline_hours)s h or last data point older than %(stale_minutes)s min.",
         "r_commands": "- **Commands not answered**: no answer to read commands on at least %(busy_days)s consecutive days.",
         "r_mismatch": "- **SoC mismatch**: inverter SoC and BMS SoC differ by at least %(soc_mismatch)s points.",
+        "r_alert": "- **Active fault/warning**: a fault of the last %(alert_days)s days that DeyeCloud has not closed yet, or device state alarm.",
+        "r_voltage": "- **Battery voltage implausible**: below %(battery_voltage_min)s V.",
         "r_ack": "- Acknowledge: add an entry under `health_acknowledged` in `config.json` (station ID, reason, optional `until`).",
         "note_blacklist": "blacklisted", "note_type": "type %s not supported",
         "note_dry": "dry-run; add to live_allowlist to go live",
@@ -82,6 +92,13 @@ def evaluate(i, h, lang="de"):
         out.append(("commands", t["commands"] % i["busy_streak"]))
     if not i["online"] or any(r in ("offline", "stale_data") for r, _ in out):
         return out  # the data based rules below need fresh data
+    if i.get("alerts"):
+        out.append(("active_alert", "; ".join(t["alert"] % (a["name"], a["level"], a["since"]) for a in i["alerts"])))
+    elif i.get("device_state") == 2:
+        out.append(("device_state", t["state"] % i["device_state"]))
+    vmin = h.get("battery_voltage_min", 40)
+    if i.get("battery_voltage") is not None and i["battery_voltage"] < vmin:
+        out.append(("battery_voltage", t["voltage"] % (i["battery_voltage"], vmin)))
     series = i["series"]
     if not series:
         out.append(("no_data", t["no_history"] % h["window_hours"]))
@@ -151,5 +168,5 @@ def render(entries, meta, acks, today):
         lines += ["", "## " + t["h_noinv"], ""] + ["- %s (%s)" % (n["name"], n["id"]) for n in meta["no_inverter"]]
     lines += ["", "## " + t["h_acked"], ""]
     lines += (_table(t["cols_acked"]) + sorted(acked_rows)) if acked_rows else [t["none"]]
-    lines += ["", "## " + t["h_rules"], ""] + [t[k] % meta["health"] for k in ("r_stuck", "r_offline", "r_commands", "r_mismatch")] + [t["r_ack"], ""]
+    lines += ["", "## " + t["h_rules"], ""] + [t[k] % {"alert_days": 7, "battery_voltage_min": 40, **meta["health"]} for k in ("r_stuck", "r_offline", "r_commands", "r_mismatch", "r_alert", "r_voltage")] + [t["r_ack"], ""]
     return "\n".join(lines)

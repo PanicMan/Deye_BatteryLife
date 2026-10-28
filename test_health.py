@@ -67,6 +67,34 @@ class Rules(unittest.TestCase):
         self.assertEqual(rules(series=s, battery=[800.0] * 190, station_status="PARTIAL_OFFLINE"), ["station_status"])
 
 
+class AlertsAndVoltage(unittest.TestCase):
+    MOVING = [(NOW - 18 * 3600 + k * 340, 20 + k % 60) for k in range(190)]
+    ALERT = {"name": "F56 DC_VoltLow_Fault", "level": 2, "since": "27.10. 16:39"}
+
+    def r(self, **kw):
+        return rules(series=self.MOVING, battery=[800.0] * 190, **kw)
+
+    def test_active_alert_is_reported_with_name(self):
+        found = health.evaluate(inp(series=self.MOVING, battery=[800.0] * 190, alerts=[self.ALERT]), H)
+        self.assertEqual([r for r, _ in found], ["active_alert"])
+        self.assertIn("F56 DC_VoltLow_Fault", found[0][1])
+
+    def test_disconnected_battery_fault_voltage_and_frozen_soc(self):  # real case: 7.5 V, F56, SoC frozen at 80 %
+        self.assertEqual(set(self.r(alerts=[self.ALERT], battery_voltage=7.5, device_state=2)), {"active_alert", "battery_voltage"})
+
+    def test_alarm_state_without_alert_list(self):
+        self.assertEqual(self.r(device_state=2), ["device_state"])
+
+    def test_normal_state_and_voltage(self):
+        self.assertEqual(self.r(device_state=1, battery_voltage=51.2, alerts=[]), [])
+
+    def test_low_battery_voltage_alone(self):
+        self.assertEqual(self.r(battery_voltage=7.5), ["battery_voltage"])
+
+    def test_alerts_ignored_when_offline(self):
+        self.assertEqual(rules(online=False, collection_time=NOW - 30 * 3600, alerts=[self.ALERT]), ["offline"])
+
+
 class Languages(unittest.TestCase):
     def test_every_german_text_has_an_english_one(self):
         self.assertEqual(set(health.T["de"]), set(health.T["en"]))
