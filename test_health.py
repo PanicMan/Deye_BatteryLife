@@ -38,9 +38,9 @@ class Rules(unittest.TestCase):
     def test_no_load_no_pv_is_not_flagged(self):
         self.assertEqual(rules(pv=[0.0] * 190, load=[20.0] * 190), [])
 
-    def test_short_window_is_not_flagged(self):
+    def test_short_window_is_not_flagged_as_stuck(self):
         s = [(NOW - 3 * 3600 + k * 340, 70) for k in range(30)]
-        self.assertEqual(rules(series=s), [])
+        self.assertNotIn("stuck_battery", rules(series=s))
 
     def test_offline_long(self):
         self.assertEqual(rules(online=False, collection_time=NOW - 30 * 3600), ["offline"])
@@ -65,6 +65,34 @@ class Rules(unittest.TestCase):
     def test_station_status(self):
         s = [(NOW - 18 * 3600 + k * 340, 20 + k % 60) for k in range(190)]
         self.assertEqual(rules(series=s, battery=[800.0] * 190, station_status="PARTIAL_OFFLINE"), ["station_status"])
+
+
+class Connection(unittest.TestCase):
+    def moving(self, drop=()):
+        return [(NOW - 18 * 3600 + k * 340, 20 + k % 60) for k in range(190) if k not in drop]
+
+    def r(self, series):
+        return rules(series=series, battery=[800.0] * 190)
+
+    def test_complete_data_is_fine(self):
+        self.assertEqual(self.r(self.moving()), [])
+
+    def test_a_few_missing_points_are_fine(self):
+        self.assertEqual(self.r(self.moving(drop={10, 11, 50})), [])
+
+    def test_one_long_gap(self):  # 12 missing points of 340 s = about 68 min
+        self.assertEqual(self.r(self.moving(drop=set(range(60, 72)))), ["unstable_connection"])
+
+    def test_alternating_missing_points_are_tolerated(self):  # reporting every ~11 instead of ~6 min is still fine
+        s = [p for k, p in enumerate(self.moving()) if not (40 <= k < 140 and k % 2 == 0)]
+        self.assertEqual(self.r(s), [])
+
+    def test_data_ends_long_before_now(self):
+        self.assertIn("unstable_connection", self.r(self.moving()[:150]))
+
+    def test_gap_stats_values(self):
+        share, longest = health.gap_stats(self.moving(), NOW, 18)
+        self.assertEqual((share, longest <= 700), (0.0, True))
 
 
 class AlertsAndVoltage(unittest.TestCase):

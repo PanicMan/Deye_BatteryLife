@@ -9,13 +9,14 @@ T = {
         "rules": {"no_data": "Keine Daten", "offline": "Wechselrichter offline", "station_status": "Station nicht NORMAL",
                   "stale_data": "Daten veraltet", "stuck_battery": "Akku bewegt sich nicht",
                   "soc_mismatch": "SoC-Abweichung Wechselrichter/BMS", "commands": "Befehle gehen nicht durch",
-                  "check_failed": "Prüfung fehlgeschlagen", "active_alert": "Aktive Störung/Warnung",
+                  "check_failed": "Prüfung fehlgeschlagen", "unstable_connection": "Verbindung instabil", "active_alert": "Aktive Störung/Warnung",
                   "device_state": "Wechselrichter im Alarmzustand", "battery_voltage": "Batteriespannung unplausibel"},
         "last_data": "letzte Daten vor %s", "unknown_time": "unbekannter Zeit", "stale": "letzter Datenpunkt vor %.0f min",
         "status": "Status %s", "commands": "Befehle seit %d Tagen ohne Antwort (Datenlogger/Wechselrichter reagiert nicht)",
         "no_history": "keine SoC-Verlaufsdaten der letzten %d h",
         "stuck": "SoC %d%% konstant über %.0f h, Batterieleistung max %.0f W, Last Ø %.0f W, PV max %.0f W",
         "mismatch": "Wechselrichter %s%% / BMS %s%%", "ack_expired": "Quittierung abgelaufen (%s): %s",
+        "conn": "%.0f %% der letzten %d h ohne Daten, längste Lücke %d min",
         "alert": "%s (Stufe %s, seit %s)", "state": "Gerätestatus %s (Alarm), aber keine Störung abrufbar",
         "voltage": "Batteriespannung %.1f V (erwartet mindestens %s V)",
         "summary": "Stand: %s · geprüft: %d Wechselrichter in %d Stationen · **offen: %d Anlagen** · quittiert: %d Befunde",
@@ -29,6 +30,7 @@ T = {
         "r_offline": "- **Offline / Daten veraltet**: Wechselrichter länger als %(offline_hours)s h offline bzw. letzter Datenpunkt älter als %(stale_minutes)s min.",
         "r_commands": "- **Befehle gehen nicht durch**: mindestens %(busy_days)s Tage hintereinander keine Antwort auf Lesebefehle.",
         "r_mismatch": "- **SoC-Abweichung**: Wechselrichter-SoC und BMS-SoC weichen um mindestens %(soc_mismatch)s Punkte ab.",
+        "r_conn": "- **Verbindung instabil**: mindestens %(conn_missing_share_pct)s %% des Zeitfensters ohne Daten oder eine Lücke von mindestens %(conn_max_gap_min)s min.",
         "r_alert": "- **Aktive Störung/Warnung**: eine in der DeyeCloud noch nicht beendete Störung der letzten %(alert_days)s Tage, oder Gerätestatus Alarm.",
         "r_voltage": "- **Batteriespannung unplausibel**: unter %(battery_voltage_min)s V.",
         "r_ack": "- Quittieren: Eintrag unter `health_acknowledged` in `config.json` (Station-ID, Grund, optional `until`).",
@@ -40,13 +42,14 @@ T = {
         "rules": {"no_data": "No data", "offline": "Inverter offline", "station_status": "Station not NORMAL",
                   "stale_data": "Data outdated", "stuck_battery": "Battery not moving",
                   "soc_mismatch": "SoC mismatch inverter/BMS", "commands": "Commands not answered",
-                  "check_failed": "Check failed", "active_alert": "Active fault/warning",
+                  "check_failed": "Check failed", "unstable_connection": "Unstable connection", "active_alert": "Active fault/warning",
                   "device_state": "Inverter in alarm state", "battery_voltage": "Battery voltage implausible"},
         "last_data": "last data %s ago", "unknown_time": "an unknown time", "stale": "last data point %.0f min ago",
         "status": "status %s", "commands": "no answer to commands for %d days (data logger/inverter not responding)",
         "no_history": "no SoC history for the last %d h",
         "stuck": "SoC constant at %d%% for %.0f h, battery power max %.0f W, load avg %.0f W, PV max %.0f W",
         "mismatch": "inverter %s%% / BMS %s%%", "ack_expired": "acknowledgement expired (%s): %s",
+        "conn": "%.0f %% of the last %d h without data, longest gap %d min",
         "alert": "%s (level %s, since %s)", "state": "device state %s (alarm), but no fault retrievable",
         "voltage": "battery voltage %.1f V (expected at least %s V)",
         "summary": "As of: %s · checked: %d inverters in %d stations · **open: %d stations** · acknowledged: %d findings",
@@ -60,6 +63,7 @@ T = {
         "r_offline": "- **Offline / outdated data**: inverter offline for more than %(offline_hours)s h or last data point older than %(stale_minutes)s min.",
         "r_commands": "- **Commands not answered**: no answer to read commands on at least %(busy_days)s consecutive days.",
         "r_mismatch": "- **SoC mismatch**: inverter SoC and BMS SoC differ by at least %(soc_mismatch)s points.",
+        "r_conn": "- **Unstable connection**: at least %(conn_missing_share_pct)s %% of the window without data or a gap of at least %(conn_max_gap_min)s min.",
         "r_alert": "- **Active fault/warning**: a fault of the last %(alert_days)s days that DeyeCloud has not closed yet, or device state alarm.",
         "r_voltage": "- **Battery voltage implausible**: below %(battery_voltage_min)s V.",
         "r_ack": "- Acknowledge: add an entry under `health_acknowledged` in `config.json` (station ID, reason, optional `until`).",
@@ -67,6 +71,23 @@ T = {
         "note_dry": "dry-run; add to live_allowlist to go live",
     },
 }
+
+
+def gap_stats(series, now, window_h):
+    """(missing_share, longest_gap_s): data gaps in the history window.
+
+    A gap is a pause longer than max(3 x median reporting interval, 15 min); the window start and
+    the time since the last point count as well.
+    """
+    ts = sorted(t for t, _ in series)
+    start = now - window_h * 3600
+    if len(ts) < 3:
+        return 1.0, window_h * 3600
+    intervals = sorted(b - a for a, b in zip(ts, ts[1:]))
+    tol = max(3 * intervals[len(intervals) // 2], 900)
+    pts = [start] + ts + [now]
+    diffs = [b - a for a, b in zip(pts, pts[1:])]
+    return sum(d for d in diffs if d > tol) / (window_h * 3600), max(diffs)
 
 
 def tr(lang):
@@ -103,6 +124,9 @@ def evaluate(i, h, lang="de"):
     if not series:
         out.append(("no_data", t["no_history"] % h["window_hours"]))
         return out
+    share, longest = gap_stats(series, i["now"], h["window_hours"])
+    if share >= h.get("conn_missing_share", 0.10) or longest >= h.get("conn_max_gap_min", 60) * 60:
+        out.append(("unstable_connection", t["conn"] % (share * 100, h["window_hours"], longest / 60)))
     socs = [v for _, v in series]
     span_h = (series[-1][0] - series[0][0]) / 3600
     soc_range = max(socs) - min(socs)
@@ -168,5 +192,6 @@ def render(entries, meta, acks, today):
         lines += ["", "## " + t["h_noinv"], ""] + ["- %s (%s)" % (n["name"], n["id"]) for n in meta["no_inverter"]]
     lines += ["", "## " + t["h_acked"], ""]
     lines += (_table(t["cols_acked"]) + sorted(acked_rows)) if acked_rows else [t["none"]]
-    lines += ["", "## " + t["h_rules"], ""] + [t[k] % {"alert_days": 7, "battery_voltage_min": 40, **meta["health"]} for k in ("r_stuck", "r_offline", "r_commands", "r_mismatch", "r_alert", "r_voltage")] + [t["r_ack"], ""]
+    lines += ["", "## " + t["h_rules"], ""] + [t[k] % {"alert_days": 7, "battery_voltage_min": 40, "conn_max_gap_min": 60, **meta["health"],
+                                                                    "conn_missing_share_pct": round(meta["health"].get("conn_missing_share", 0.10) * 100)} for k in ("r_stuck", "r_offline", "r_commands", "r_mismatch", "r_conn", "r_alert", "r_voltage")] + [t["r_ack"], ""]
     return "\n".join(lines)
