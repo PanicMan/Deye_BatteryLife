@@ -46,6 +46,7 @@ Only code and example configs are versioned; customer names, station IDs, histor
 |---|---|---|
 | Deye BatteryLife | 18:00 | `batterylife.py` (adjustment + health report) |
 | Deye BatteryLife Retry | 18:45, 19:30 | `batterylife.py --retry` (only stations not handled successfully yet) |
+| Deye BatteryLife Health | every 3 h | `batterylife.py --health-only` (read-only health report, no inverter commands) |
 
 The computer has to be running and the user account that registered the tasks has to be logged in.
 

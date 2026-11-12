@@ -1,6 +1,7 @@
 # Registers the Windows scheduled tasks for Deye BatteryLife (run once; re-running replaces the tasks).
 #   "Deye BatteryLife"        daily 18:00            full run
 #   "Deye BatteryLife Retry"  daily 18:45 and 19:30  --retry (only stations not handled successfully today)
+#   "Deye BatteryLife Health" every 3 h              --health-only (read-only health report, no inverter commands)
 # The tasks run as the current user while logged on (secrets.json is readable by this user only).
 # Remove with: Unregister-ScheduledTask -TaskName "Deye BatteryLife*" -Confirm:$false
 $root   = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -21,3 +22,5 @@ function New-Job($name, $argsLine, $times) {
 
 New-Job "Deye BatteryLife"       ""        @("18:00")
 New-Job "Deye BatteryLife Retry" "--retry" @("18:45", "19:30")
+# read-only health report every few hours, so problems show up long before the next daily run
+New-Job "Deye BatteryLife Health" "--health-only" @("03:00", "06:00", "09:00", "12:00", "15:00", "21:00")

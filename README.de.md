@@ -28,6 +28,7 @@ Im Repository liegen bewusst nur Code und Beispiel-Konfigurationen. Kundennamen,
 |---|---|---|
 | Deye BatteryLife | 18:00 | `batterylife.py` (Anpassung + Gesundheitsbericht) |
 | Deye BatteryLife Retry | 18:45, 19:30 | `batterylife.py --retry` (nur Anlagen, die noch nicht erfolgreich durch sind) |
+| Deye BatteryLife Health | alle 3 h | `batterylife.py --health-only` (nur Gesundheitsbericht, keine Befehle an Anlagen) |
 
 Der Rechner muss laufen und das Benutzerkonto, unter dem die Aufgaben registriert wurden, angemeldet sein.
 

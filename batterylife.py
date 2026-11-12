@@ -222,6 +222,8 @@ def process(u, tok, cfg, mode, today, state_dir, backup_dir, retry=False):
         state.update(busy_streak=0)
     if mode == "live" and row["result"] in ("changed", "nochange"):
         state.update(done_date=today, done_result=row["result"])
+        if row["new"] != "":  # log of the minimum SoC that is set, used by the health check
+            state["targets"] = (state.get("targets") or [])[-7:] + [[int(time.time()), int(row["new"])]]
     state_file.write_text(json.dumps(state, indent=1), encoding="utf-8")
     return row
 
@@ -406,7 +408,7 @@ def run_health(units, stations, tok, cfg, today, fleet_units=None, partial=False
         lt = latest.get(sn, {})
         inp = {"now": now, "online": u["online"], "station_status": u["station_status"], "series": [], "pv": [], "load": [],
                "battery": [], "soc_now": lt.get("soc"), "bms_soc": lt.get("bms"), "busy_streak": state.get("busy_streak", 0),
-               "alerts": [], "device_state": lt.get("state"), "battery_voltage": lt.get("volt"),
+               "alerts": [], "targets": state.get("targets", []), "device_state": lt.get("state"), "battery_voltage": lt.get("volt"),
                "collection_time": lt.get("time") or u.get("collection_time"),
                "floor": (state["shutdown"] + cfg["min_soc_offset_over_shutdown"]) if "shutdown" in state else None}
         try:

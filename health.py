@@ -9,7 +9,7 @@ T = {
         "rules": {"no_data": "Keine Daten", "offline": "Wechselrichter offline", "station_status": "Station nicht NORMAL",
                   "stale_data": "Daten veraltet", "stuck_battery": "Akku bewegt sich nicht",
                   "soc_mismatch": "SoC-Abweichung Wechselrichter/BMS", "commands": "Befehle gehen nicht durch",
-                  "check_failed": "Prüfung fehlgeschlagen", "unstable_connection": "Verbindung instabil", "active_alert": "Aktive Störung/Warnung",
+                  "check_failed": "Prüfung fehlgeschlagen", "unstable_connection": "Verbindung instabil", "below_target": "Akku lädt trotz Netzladung nicht nach", "active_alert": "Aktive Störung/Warnung",
                   "device_state": "Wechselrichter im Alarmzustand", "battery_voltage": "Batteriespannung unplausibel"},
         "last_data": "letzte Daten vor %s", "unknown_time": "unbekannter Zeit", "stale": "letzter Datenpunkt vor %.0f min",
         "status": "Status %s", "commands": "Befehle seit %d Tagen ohne Antwort (Datenlogger/Wechselrichter reagiert nicht)",
@@ -17,6 +17,7 @@ T = {
         "stuck": "SoC %d%% konstant über %.0f h, Batterieleistung max %.0f W, Last Ø %.0f W, PV max %.0f W",
         "mismatch": "Wechselrichter %s%% / BMS %s%%", "ack_expired": "Quittierung abgelaufen (%s): %s",
         "conn": "%.0f %% der letzten %d h ohne Daten, längste Lücke %d min",
+        "below": "SoC %d %% seit %.0f h unter dem eingestellten Mindest-SoC (%d %%), Akku lädt nicht nach (Batterieleistung %.0f W)",
         "alert": "%s (Stufe %s, seit %s)", "state": "Gerätestatus %s (Alarm), aber keine Störung abrufbar",
         "voltage": "Batteriespannung %.1f V (erwartet mindestens %s V)",
         "summary": "Stand: %s · geprüft: %d Wechselrichter in %d Stationen · **offen: %d Anlagen** · quittiert: %d Befunde",
@@ -31,6 +32,7 @@ T = {
         "r_commands": "- **Befehle gehen nicht durch**: mindestens %(busy_days)s Tage hintereinander keine Antwort auf Lesebefehle.",
         "r_mismatch": "- **SoC-Abweichung**: Wechselrichter-SoC und BMS-SoC weichen um mindestens %(soc_mismatch)s Punkte ab.",
         "r_conn": "- **Verbindung instabil**: mindestens %(conn_missing_share_pct)s %% des Zeitfensters ohne Daten oder eine Lücke von mindestens %(conn_max_gap_min)s min.",
+        "r_below": "- **Akku lädt trotz Netzladung nicht nach**: SoC liegt seit mindestens %(below_target_hours)s h um mindestens %(below_target_margin)s Punkte unter dem zuletzt eingestellten Mindest-SoC und der Akku lädt nicht.",
         "r_alert": "- **Aktive Störung/Warnung**: eine in der DeyeCloud noch nicht beendete Störung der letzten %(alert_days)s Tage, oder Gerätestatus Alarm.",
         "r_voltage": "- **Batteriespannung unplausibel**: unter %(battery_voltage_min)s V.",
         "r_ack": "- Quittieren: Eintrag unter `health_acknowledged` in `config.json` (Station-ID, Grund, optional `until`).",
@@ -42,7 +44,7 @@ T = {
         "rules": {"no_data": "No data", "offline": "Inverter offline", "station_status": "Station not NORMAL",
                   "stale_data": "Data outdated", "stuck_battery": "Battery not moving",
                   "soc_mismatch": "SoC mismatch inverter/BMS", "commands": "Commands not answered",
-                  "check_failed": "Check failed", "unstable_connection": "Unstable connection", "active_alert": "Active fault/warning",
+                  "check_failed": "Check failed", "unstable_connection": "Unstable connection", "below_target": "Battery not recharging despite grid charge", "active_alert": "Active fault/warning",
                   "device_state": "Inverter in alarm state", "battery_voltage": "Battery voltage implausible"},
         "last_data": "last data %s ago", "unknown_time": "an unknown time", "stale": "last data point %.0f min ago",
         "status": "status %s", "commands": "no answer to commands for %d days (data logger/inverter not responding)",
@@ -50,6 +52,7 @@ T = {
         "stuck": "SoC constant at %d%% for %.0f h, battery power max %.0f W, load avg %.0f W, PV max %.0f W",
         "mismatch": "inverter %s%% / BMS %s%%", "ack_expired": "acknowledgement expired (%s): %s",
         "conn": "%.0f %% of the last %d h without data, longest gap %d min",
+        "below": "SoC %d %% for %.0f h below the configured minimum SoC (%d %%), battery is not recharging (battery power %.0f W)",
         "alert": "%s (level %s, since %s)", "state": "device state %s (alarm), but no fault retrievable",
         "voltage": "battery voltage %.1f V (expected at least %s V)",
         "summary": "As of: %s · checked: %d inverters in %d stations · **open: %d stations** · acknowledged: %d findings",
@@ -64,6 +67,7 @@ T = {
         "r_commands": "- **Commands not answered**: no answer to read commands on at least %(busy_days)s consecutive days.",
         "r_mismatch": "- **SoC mismatch**: inverter SoC and BMS SoC differ by at least %(soc_mismatch)s points.",
         "r_conn": "- **Unstable connection**: at least %(conn_missing_share_pct)s %% of the window without data or a gap of at least %(conn_max_gap_min)s min.",
+        "r_below": "- **Battery not recharging despite grid charge**: SoC has been at least %(below_target_margin)s points below the last configured minimum SoC for at least %(below_target_hours)s h and the battery is not charging.",
         "r_alert": "- **Active fault/warning**: a fault of the last %(alert_days)s days that DeyeCloud has not closed yet, or device state alarm.",
         "r_voltage": "- **Battery voltage implausible**: below %(battery_voltage_min)s V.",
         "r_ack": "- Acknowledge: add an entry under `health_acknowledged` in `config.json` (station ID, reason, optional `until`).",
@@ -88,6 +92,22 @@ def gap_stats(series, now, window_h):
     pts = [start] + ts + [now]
     diffs = [b - a for a, b in zip(pts, pts[1:])]
     return sum(d for d in diffs if d > tol) / (window_h * 3600), max(diffs)
+
+
+def below_target_hours(series, targets, floor, margin):
+    """Hours the SoC has been continuously at least `margin` points below the minimum SoC that was set
+    (last value of `targets` [[epoch, soc]] valid at that time, else `floor`), counted back from the last sample."""
+    start = None
+    for t, v in sorted(series):
+        expected = floor
+        for tt, soc in sorted(targets):
+            if tt <= t:
+                expected = soc
+        if v <= expected - margin:
+            start = t if start is None else start
+        else:
+            start = None
+    return (max(t for t, _ in series) - start) / 3600 if start is not None else 0.0
 
 
 def tr(lang):
@@ -138,6 +158,11 @@ def evaluate(i, h, lang="de"):
             and floor + h["stuck_above_floor"] <= max(socs) < h["stuck_max_soc"]
             and (load_avg >= h["stuck_min_load_w"] or pv_max >= h["stuck_min_pv_w"]) and bp_max < h["stuck_max_battery_w"]):
         out.append(("stuck_battery", t["stuck"] % (max(socs), span_h, bp_max, load_avg, pv_max)))
+    hrs = below_target_hours(series, i.get("targets") or [], floor, h.get("below_target_margin", 3))
+    recent = i["battery"][-3:]
+    if hrs >= h.get("below_target_hours", 4) and recent and sum(recent) / len(recent) > -300:
+        exp = max([s for tt, s in sorted(i.get("targets") or []) if tt <= series[-1][0]] or [floor])
+        out.append(("below_target", t["below"] % (socs[-1], hrs, exp, sum(recent) / len(recent))))
     if i.get("bms_soc") is not None and i.get("soc_now") is not None and abs(i["soc_now"] - i["bms_soc"]) >= h["soc_mismatch"]:
         out.append(("soc_mismatch", t["mismatch"] % (i["soc_now"], i["bms_soc"])))
     return out
@@ -192,6 +217,6 @@ def render(entries, meta, acks, today):
         lines += ["", "## " + t["h_noinv"], ""] + ["- %s (%s)" % (n["name"], n["id"]) for n in meta["no_inverter"]]
     lines += ["", "## " + t["h_acked"], ""]
     lines += (_table(t["cols_acked"]) + sorted(acked_rows)) if acked_rows else [t["none"]]
-    lines += ["", "## " + t["h_rules"], ""] + [t[k] % {"alert_days": 7, "battery_voltage_min": 40, "conn_max_gap_min": 60, **meta["health"],
-                                                                    "conn_missing_share_pct": round(meta["health"].get("conn_missing_share", 0.10) * 100)} for k in ("r_stuck", "r_offline", "r_commands", "r_mismatch", "r_conn", "r_alert", "r_voltage")] + [t["r_ack"], ""]
+    lines += ["", "## " + t["h_rules"], ""] + [t[k] % {"alert_days": 7, "battery_voltage_min": 40, "conn_max_gap_min": 60, "below_target_hours": 4, "below_target_margin": 3, **meta["health"],
+                                                                    "conn_missing_share_pct": round(meta["health"].get("conn_missing_share", 0.10) * 100)} for k in ("r_stuck", "r_offline", "r_commands", "r_mismatch", "r_conn", "r_below", "r_alert", "r_voltage")] + [t["r_ack"], ""]
     return "\n".join(lines)

@@ -67,6 +67,46 @@ class Rules(unittest.TestCase):
         self.assertEqual(rules(series=s, battery=[800.0] * 190, station_status="PARTIAL_OFFLINE"), ["station_status"])
 
 
+class BelowTarget(unittest.TestCase):
+    T0 = NOW - 18 * 3600
+
+    def falling(self, start=25, end=4):  # real case: SoC sinks steadily although grid charging is on
+        n = 190
+        return [(self.T0 + k * 340, start - (start - end) * k // (n - 1)) for k in range(n)]
+
+    def r(self, series, **kw):
+        return rules(series=series, battery=[40.0] * 190, targets=[[self.T0 - 3600, 25]], **kw)
+
+    def test_not_recharging_for_many_hours_is_reported(self):
+        self.assertIn("below_target", self.r(self.falling()))
+
+    def test_detail_names_target_and_duration(self):
+        found = health.evaluate(inp(series=self.falling(), battery=[40.0] * 190, targets=[[self.T0 - 3600, 25]]), H)
+        text = dict(found)["below_target"]
+        self.assertIn("25", text)
+        self.assertIn("4", text)
+
+    def test_recovering_battery_is_fine(self):
+        s = self.falling()
+        self.assertNotIn("below_target", rules(series=s, battery=[-2400.0] * 190, targets=[[self.T0 - 3600, 25]]))
+
+    def test_soc_at_target_is_fine(self):
+        s = [(self.T0 + k * 340, 25) for k in range(190)]
+        self.assertNotIn("below_target", self.r(s))
+
+    def test_short_dip_is_fine(self):  # below target for only about 2 h at the end
+        s = [(self.T0 + k * 340, 25 if k < 170 else 15) for k in range(190)]
+        self.assertNotIn("below_target", self.r(s))
+
+    def test_without_target_log_the_floor_is_used(self):
+        s = [(self.T0 + k * 340, 8) for k in range(190)]  # floor 15 -> 8 <= 12
+        self.assertIn("below_target", rules(series=s, battery=[40.0] * 190, targets=[]))
+
+    def test_hours_helper(self):
+        s = [(self.T0 + k * 3600, 30 if k < 6 else 10) for k in range(12)]
+        self.assertEqual(health.below_target_hours(s, [[self.T0, 25]], 15, 3), 5.0)
+
+
 class Connection(unittest.TestCase):
     def moving(self, drop=()):
         return [(NOW - 18 * 3600 + k * 340, 20 + k % 60) for k in range(190) if k not in drop]
