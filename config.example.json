@@ -3,6 +3,13 @@
   "default_mode": "dry",
   "_comment_report_language": "Sprache des Gesundheitsberichts / language of the health report: de (Gesundheitsbericht.md) or en (health_report.md)",
   "report_language": "de",
+  "_comment_mail": "Tagesmail um den Hauptlauf (voller Bericht) plus Extra-Mail bei neuen offenen Befunden. Zugangsdaten stehen in secrets.json, Abschnitt 'mail'. Test: python batterylife.py --test-mail",
+  "mail": {
+    "enabled": false,
+    "to": [
+      "<empfaenger@example.org>"
+    ]
+  },
   "_comment_live_allowlist": "Stations-IDs, die tatsächlich geschrieben werden dürfen. Leer = alles nur Dry-Run.",
   "live_allowlist": [],
   "_comment_blacklist": "Stations-ID -> 'Name: Grund'. Diese Anlagen werden nie gelesen oder geschrieben.",

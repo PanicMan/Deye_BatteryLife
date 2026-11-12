@@ -26,6 +26,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT))
 import deye_api as api  # noqa: E402
 import health  # noqa: E402
+import mailer  # noqa: E402
 import logic  # noqa: E402
 
 REG_FRAME = "01030064006405FE"  # Modbus RTU: read holding regs 100..199 of unit 1
@@ -273,6 +274,7 @@ def main():
     ap.add_argument("--retry", action="store_true", help="retry pass: only stations not handled successfully today")
     ap.add_argument("--health-only", action="store_true", help="only write the health report (no device commands at all)")
     ap.add_argument("--no-health", action="store_true", help="skip the health report")
+    ap.add_argument("--test-mail", action="store_true", help="send a test mail with the settings from config.json/secrets.json and exit")
     args = ap.parse_args()
     for path, example in ((Path(args.config), "config.example.json"), (ROOT / "secrets.json", "secrets.example.json")):
         if not path.exists():
@@ -286,6 +288,8 @@ def main():
         logging.FileHandler(ROOT / "logs" / ("%s.log" % today), encoding="utf-8"), logging.StreamHandler(sys.stdout)])
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if args.test_mail:
+        return test_mail(cfg, secrets)
     lock = ROOT / "run.lock"
     if not acquire_lock(lock):
         log.error("another run is active (run.lock younger than 3h) - exiting")
@@ -343,7 +347,7 @@ def run(cfg, secrets, args, today):
     if args.health_only or not (args.retry or args.no_health):
         try:
             run_health([u for u in units if not only or u["station_id"] in only], stations, tok, cfg, today,
-                       fleet_units=units, partial=bool(only))
+                       fleet_units=units, partial=bool(only), secrets=secrets, daily=not (args.health_only or args.retry))
         except Exception:
             log.exception("health report failed")
     return 1 if any(r["result"] == "error" for r in rows) else 0
@@ -385,7 +389,50 @@ def track_new_stations(stations, fleet_units, cfg, today, partial):
     return sorted(new, key=lambda n: n["since"]), sorted(no_inv, key=lambda n: n["name"])
 
 
-def run_health(units, stations, tok, cfg, today, fleet_units=None, partial=False):
+def test_mail(cfg, secrets):
+    smtp, to = secrets.get("mail"), cfg.get("mail", {}).get("to", [])
+    if not mailer.configured(smtp) or not to:
+        print("mail not configured: fill the 'mail' section in secrets.json (host, user, password) and 'mail.to' in config.json")
+        return 1
+    t = mailer.TEXT.get(cfg.get("report_language", "de"), mailer.TEXT["de"])
+    try:
+        mailer.send(smtp, to, t["test_subject"], t["test_body"])
+    except Exception as e:
+        print("sending failed: %s: %s" % (type(e).__name__, str(e)[:200]))
+        return 1
+    print("test mail sent to %s" % ", ".join(to))
+    return 0
+
+
+def notify(entries, text, cfg, secrets, today, daily):
+    """Daily status mail (main run) plus an extra mail whenever new open findings appear (any run)."""
+    m = cfg.get("mail", {})
+    if not m.get("enabled"):
+        return
+    smtp = (secrets or {}).get("mail")
+    if not mailer.configured(smtp) or not m.get("to"):
+        log.warning("mail enabled but not configured (secrets.json 'mail' section / config 'mail.to')")
+        return
+    path = ROOT / "state" / "_mail.json"
+    st = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+    current = mailer.open_keys(entries)
+    new = mailer.new_keys(st["open"], current) if st else []  # first run: nothing counts as new
+    send_daily = daily and (not st or st.get("last_daily") != today)
+    if not (send_daily or new):
+        path.write_text(json.dumps({"open": current, "last_daily": (st or {}).get("last_daily")}), encoding="utf-8")
+        return
+    lang = cfg.get("report_language", "de")
+    subject, body = mailer.build(entries, current, new, text, lang, send_daily)
+    try:
+        mailer.send(smtp, m["to"], subject, body)
+    except Exception as e:  # keep the old state, so the same findings are reported again by the next run
+        log.warning("mail not sent: %s: %s", type(e).__name__, str(e)[:150])
+        return
+    log.info("mail sent to %s: %s", ", ".join(m["to"]), subject)
+    path.write_text(json.dumps({"open": current, "last_daily": today if send_daily else (st or {}).get("last_daily")}), encoding="utf-8")
+
+
+def run_health(units, stations, tok, cfg, today, fleet_units=None, partial=False, secrets=None, daily=False):
     h, acks, now = cfg["health"], cfg.get("health_acknowledged", {}), int(time.time())
     lang = cfg.get("report_language", "de")
     new_stations, no_inverter = track_new_stations(stations, fleet_units or units, cfg, today, partial)
@@ -449,6 +496,8 @@ def run_health(units, stations, tok, cfg, today, fleet_units=None, partial=False
     report_name = health.REPORT_FILES.get(lang, health.REPORT_FILES["de"])
     (ROOT / report_name).write_text(text, encoding="utf-8")
     (ROOT / "reports" / ("health_%s.md" % today)).write_text(text, encoding="utf-8")
+    if not partial:
+        notify(entries, text, cfg, secrets, today, daily)
     open_names = sorted({e["station"] for e in entries if any(not f["acked"] for f in e["findings"])})
     log.info("HEALTH: %d stations with open findings (%s), %d acknowledged findings -> %s", len(open_names),
              ", ".join(open_names) or "-", sum(1 for e in entries for f in e["findings"] if f["acked"]), report_name)

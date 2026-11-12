@@ -74,6 +74,10 @@ The computer has to be running and the user account that registered the tasks ha
 - **Roll back:** write the table from `backups/<date>/<SN>.json` back with `strategy/dynamicControl` (only `timeUseSettingItems`).
 - **Manual runs:** `--dry-run` (never write), `--only <StationID>,...`, `--health-only` (no inverter commands at all), `--no-health`, `--retry`.
 
+## E-mail report
+
+With `"mail": {"enabled": true, "to": [...]}` in `config.json` and a `mail` section in `secrets.json` (SMTP host, port, `starttls` or `ssl`, user, password, from) the health report is mailed: a **daily status mail** with the full report after the main run, plus an **extra mail** as soon as a new open finding appears (also from the 3-hourly runs). Findings that are already known do not trigger another mail; a failed delivery is retried by the next run. Test it with `python batterylife.py --test-mail`. The report contains station names: use a mailbox you trust.
+
 ## New stations
 
 The station list is fetched fresh from DeyeCloud on every run. A new station automatically runs as **dry-run** and is listed under "new stations" in the health report for 14 days. It only becomes live once its ID is in `live_allowlist`. Unsupported inverter types (only `0_5411_1` is enabled) are skipped.
