@@ -59,6 +59,10 @@ Grenzen: Abschalt-SoC + 5 bis 50 %. Netzladung standardmäßig in **allen** TOU-
 - **Zurückrollen**: Tabelle aus `backups/<Datum>/<SN>.json` per `strategy/dynamicControl` (nur `timeUseSettingItems`) zurückschreiben.
 - **Manuell**: `python batterylife.py --dry-run` (nichts schreiben), `--only <StationID>,...` (nur diese Stationen), `--health-only` (nur Bericht, keine Befehle an Anlagen), `--no-health`.
 
+## E-Mail-Bericht
+
+Mit `"mail": {"enabled": true, "to": [...]}` in `config.json` und einem Abschnitt `mail` in `secrets.json` (SMTP-Host, Port, `starttls` oder `ssl`, Benutzer, Passwort, Absender) wird der Gesundheitsbericht per Mail verschickt: eine **Tagesmail** mit dem vollen Bericht nach dem Hauptlauf und eine **Extra-Mail**, sobald ein neuer offener Befund auftaucht (auch bei den 3-Stunden-Läufen). Bereits bekannte Befunde lösen keine weitere Mail aus, ein fehlgeschlagener Versand wird beim nächsten Lauf nachgeholt. Test: `python batterylife.py --test-mail`. Der Bericht enthält Stationsnamen: nur ein vertrauenswürdiges Postfach verwenden.
+
 ## Neue Anlagen
 
 Die Stationsliste wird bei jedem Lauf frisch aus der DeyeCloud geholt. Eine neue Anlage läuft automatisch im **Dry-Run** (liest und protokolliert, schreibt nichts) und steht 14 Tage unter "Neue Anlagen" im Gesundheitsbericht. Scharf wird sie erst, wenn ihre Stations-ID in `live_allowlist` steht. Nicht unterstützte Typen (nur `0_5411_1` ist freigegeben) werden übersprungen, Blacklist-Anlagen nie angefasst. Stationen ohne Wechselrichter stehen separat im Bericht.
