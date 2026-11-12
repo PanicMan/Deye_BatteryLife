@@ -50,7 +50,9 @@
     "alert_days": 7,
     "battery_voltage_min": 40,
     "conn_missing_share": 0.1,
-    "conn_max_gap_min": 60
+    "conn_max_gap_min": 60,
+    "below_target_hours": 4,
+    "below_target_margin": 3
   },
   "_comment_health_acknowledged": "Stations-ID -> {reason, rules: 'all' oder Liste, until: Datum oder null}. Quittierte Befunde erscheinen nicht als offen.",
   "health_acknowledged": {}
