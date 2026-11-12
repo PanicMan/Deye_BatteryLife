@@ -23,4 +23,4 @@ function New-Job($name, $argsLine, $times) {
 New-Job "Deye BatteryLife"       ""        @("18:00")
 New-Job "Deye BatteryLife Retry" "--retry" @("18:45", "19:30")
 # read-only health report every few hours, so problems show up long before the next daily run
-New-Job "Deye BatteryLife Health" "--health-only" @("03:00", "06:00", "09:00", "12:00", "15:00", "21:00")
+New-Job "Deye BatteryLife Health" "--health-only" @("06:00", "12:00")
