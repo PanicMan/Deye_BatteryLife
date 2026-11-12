@@ -23,7 +23,7 @@ T = {
         "summary": "Stand: %s · geprüft: %d Wechselrichter in %d Stationen · **offen: %d Anlagen** · quittiert: %d Befunde",
         "h_open": "Offen", "none_open": "Keine offenen Befunde.", "cols_open": ["Anlage", "Befund", "Details", "seit"],
         "day": "%s (%d. Tag)",
-        "h_new": "Neue Anlagen (laufen nur im Dry-Run, bis sie in `live_allowlist` stehen)", "cols_new": ["Anlage", "seit", "Hinweis"],
+        "h_new": "Neue Anlagen (erste Tage nach dem Auftauchen)", "cols_new": ["Anlage", "seit", "Hinweis"],
         "h_noinv": "Stationen ohne Wechselrichter (werden nicht geprüft)",
         "h_acked": "Quittiert (bekannt, nur zur Übersicht)", "none": "Keine.", "cols_acked": ["Anlage", "Befund", "Grund", "gültig bis"],
         "unlimited": "unbefristet", "h_rules": "Prüfregeln",
@@ -38,6 +38,7 @@ T = {
         "r_ack": "- Quittieren: Eintrag unter `health_acknowledged` in `config.json` (Station-ID, Grund, optional `until`).",
         "note_blacklist": "Blacklist", "note_type": "Typ %s nicht unterstützt",
         "note_dry": "Dry-Run; in live_allowlist eintragen zum Scharfschalten",
+        "note_live": "live (steht in live_allowlist)",
     },
     "en": {
         "title": "Deye station health report",
@@ -58,7 +59,7 @@ T = {
         "summary": "As of: %s · checked: %d inverters in %d stations · **open: %d stations** · acknowledged: %d findings",
         "h_open": "Open", "none_open": "No open findings.", "cols_open": ["Station", "Finding", "Details", "since"],
         "day": "%s (day %d)",
-        "h_new": "New stations (dry-run only until added to `live_allowlist`)", "cols_new": ["Station", "since", "Note"],
+        "h_new": "New stations (first days after they appeared)", "cols_new": ["Station", "since", "Note"],
         "h_noinv": "Stations without an inverter (not checked)",
         "h_acked": "Acknowledged (known, for reference only)", "none": "None.", "cols_acked": ["Station", "Finding", "Reason", "valid until"],
         "unlimited": "unlimited", "h_rules": "Rules",
@@ -73,6 +74,7 @@ T = {
         "r_ack": "- Acknowledge: add an entry under `health_acknowledged` in `config.json` (station ID, reason, optional `until`).",
         "note_blacklist": "blacklisted", "note_type": "type %s not supported",
         "note_dry": "dry-run; add to live_allowlist to go live",
+        "note_live": "live (in live_allowlist)",
     },
 }
 

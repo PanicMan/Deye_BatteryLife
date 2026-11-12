@@ -381,6 +381,8 @@ def track_new_stations(stations, fleet_units, cfg, today, partial):
                 note = health.tr(lang)["note_blacklist"]
             elif prod.get(sid) not in cfg["supported_products"]:
                 note = health.tr(lang)["note_type"] % prod.get(sid)
+            elif sid in cfg["live_allowlist"]:
+                note = health.tr(lang)["note_live"]
             else:
                 note = health.tr(lang)["note_dry"]
             new.append({"name": stations[sid], "id": sid, "since": since, "note": note})
