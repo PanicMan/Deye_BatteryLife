@@ -135,6 +135,42 @@ class Connection(unittest.TestCase):
         self.assertEqual((share, longest <= 700), (0.0, True))
 
 
+class QuietHoursAndSwitches(unittest.TestCase):
+    def local(self, y, mo, d, h, mi=0):
+        import datetime
+        return datetime.datetime(y, mo, d, h, mi).timestamp()
+
+    def test_overlap_inside_window(self):  # 21:56 -> 06:00 is completely inside 21:00-07:00
+        a, b = self.local(2026, 11, 14, 21, 56), self.local(2026, 11, 15, 6, 0)
+        self.assertEqual(health.quiet_overlap_s(a, b, ["21:00", "07:00"]), b - a)
+
+    def test_overlap_partly_outside(self):  # 20:00 -> 22:00: only the last hour is quiet
+        a, b = self.local(2026, 11, 14, 20), self.local(2026, 11, 14, 22)
+        self.assertEqual(health.quiet_overlap_s(a, b, ["21:00", "07:00"]), 3600)
+
+    def test_no_quiet_window(self):
+        self.assertEqual(health.quiet_overlap_s(0, 10 ** 6, None), 0)
+
+    def test_nightly_wifi_off_is_not_a_connection_problem(self):
+        now = self.local(2026, 11, 15, 12)
+        start = now - 18 * 3600
+        gap_a, gap_b = self.local(2026, 11, 14, 21, 56), self.local(2026, 11, 15, 6, 0)
+        series = [(t, 50) for t in range(int(start), int(now), 340) if not gap_a <= t < gap_b]
+        self.assertGreater(health.gap_stats(series, now, 18)[1], 3600)               # without quiet hours: flagged
+        self.assertLess(health.gap_stats(series, now, 18, ["21:00", "07:00"])[1], 1800)  # with quiet hours: fine
+
+    def test_daytime_gap_still_counts_with_quiet_hours(self):
+        now = self.local(2026, 11, 15, 18)
+        series = [(t, 50) for t in range(int(now - 18 * 3600), int(now), 340)
+                  if not self.local(2026, 11, 15, 10) <= t < self.local(2026, 11, 15, 13)]
+        self.assertGreaterEqual(health.gap_stats(series, now, 18, ["21:00", "07:00"])[1], 3 * 3600 - 400)
+
+    def test_disabled_rules_are_dropped(self):
+        i = inp(series=[(NOW - 18 * 3600 + k * 340, 20 + k % 60) for k in range(190)], battery=[800.0] * 190, station_status="PARTIAL_OFFLINE")
+        self.assertEqual([r for r, _ in health.evaluate(i, H)], ["station_status"])
+        self.assertEqual(health.evaluate(i, {**H, "disabled_rules": ["station_status"]}), [])
+
+
 class AlertsAndVoltage(unittest.TestCase):
     MOVING = [(NOW - 18 * 3600 + k * 340, 20 + k % 60) for k in range(190)]
     ALERT = {"name": "F56 DC_VoltLow_Fault", "level": 2, "since": "27.10. 16:39"}
