@@ -8,7 +8,8 @@
     "enabled": false,
     "to": [
       "<empfaenger@example.org>"
-    ]
+    ],
+    "realert_days": 3
   },
   "_comment_live_allowlist": "Stations-IDs, die tatsächlich geschrieben werden dürfen. Leer = alles nur Dry-Run.",
   "live_allowlist": [],
@@ -59,7 +60,12 @@
     "conn_missing_share": 0.1,
     "conn_max_gap_min": 60,
     "below_target_hours": 4,
-    "below_target_margin": 3
+    "below_target_margin": 3,
+    "conn_quiet_hours": [
+      "21:00",
+      "07:00"
+    ],
+    "disabled_rules": []
   },
   "_comment_health_acknowledged": "Stations-ID -> {reason, rules: 'all' oder Liste, until: Datum oder null}. Quittierte Befunde erscheinen nicht als offen.",
   "health_acknowledged": {}

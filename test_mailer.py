@@ -77,5 +77,52 @@ class Send(unittest.TestCase):
         self.assertFalse(mailer.configured(None))
 
 
+class Realert(unittest.TestCase):
+    """notify(): a finding that was mailed recently is not announced again when it comes back (flapping)."""
+
+    def setUp(self):
+        import json, pathlib, tempfile
+        import batterylife as b
+        self.b, self.json = b, json
+        self.old = b.ROOT
+        b.ROOT = pathlib.Path(tempfile.mkdtemp())
+        (b.ROOT / "state").mkdir()
+        self.sent = []
+        self.patch = mock.patch("batterylife.mailer.send", side_effect=lambda smtp, to, subject, body: self.sent.append(subject))
+        self.patch.start()
+        self.cfg = {"mail": {"enabled": True, "to": ["a@example.org"], "realert_days": 3}, "report_language": "de"}
+        self.sec = {"mail": {"host": "h", "user": "u", "password": "p"}}
+
+    def tearDown(self):
+        self.patch.stop()
+        self.b.ROOT = self.old
+
+    def run_notify(self, entries, daily=False):
+        n = len(self.sent)
+        self.b.notify(entries, "R", self.cfg, self.sec, "2026-11-16", daily)
+        return self.sent[n:]
+
+    def test_flapping_finding_is_mailed_once(self):
+        a = [ENTRIES[1]]
+        flap = [{"station": "F", "station_id": "9", "sn": "x9", "findings": [
+            {"rule": "unstable_connection", "detail": "d", "since": "2026-11-16", "acked": False, "note": ""}]}]
+        self.run_notify(a)                       # baseline, no mail
+        self.assertEqual(len(self.run_notify(a + flap)), 1)   # new -> mail
+        self.run_notify(a)                       # finding gone
+        self.assertEqual(self.run_notify(a + flap), [])       # back again within 3 days -> no second mail
+
+    def test_after_realert_period_it_is_mailed_again(self):
+        flap = [{"station": "F", "station_id": "9", "sn": "x9", "findings": [
+            {"rule": "unstable_connection", "detail": "d", "since": "2026-11-16", "acked": False, "note": ""}]}]
+        self.run_notify([ENTRIES[1]])
+        self.run_notify(flap)
+        p = self.b.ROOT / "state" / "_mail.json"
+        st = self.json.loads(p.read_text())
+        st["alerted"] = {k: t - 4 * 86400 for k, t in st["alerted"].items()}
+        st["open"] = []
+        p.write_text(self.json.dumps(st))
+        self.assertEqual(len(self.run_notify(flap)), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

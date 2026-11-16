@@ -79,11 +79,32 @@ T = {
 }
 
 
-def gap_stats(series, now, window_h):
+def _minutes(hhmm):
+    h, m = hhmm.split(":")
+    return int(h) * 60 + int(m)
+
+
+def quiet_overlap_s(a, b, quiet):
+    """Seconds of [a, b] (epoch) inside the daily quiet window quiet=["21:00", "07:00"] (local time)."""
+    if not quiet:
+        return 0
+    qs, qe = _minutes(quiet[0]), _minutes(quiet[1])
+    day = dt.datetime.fromtimestamp(a).replace(hour=0, minute=0, second=0, microsecond=0) - dt.timedelta(days=1)
+    last, total = dt.datetime.fromtimestamp(b), 0.0
+    while day <= last:
+        s = day + dt.timedelta(minutes=qs)
+        e = day + (dt.timedelta(minutes=qe) if qe > qs else dt.timedelta(days=1, minutes=qe))
+        total += max(0.0, min(e.timestamp(), b) - max(s.timestamp(), a))
+        day += dt.timedelta(days=1)
+    return total
+
+
+def gap_stats(series, now, window_h, quiet=None):
     """(missing_share, longest_gap_s): data gaps in the history window.
 
     A gap is a pause longer than max(3 x median reporting interval, 15 min); the window start and
-    the time since the last point count as well.
+    the time since the last point count as well. Time inside the daily quiet window (e.g. a Wi-Fi
+    that is switched off overnight) is not counted as missing.
     """
     ts = sorted(t for t, _ in series)
     start = now - window_h * 3600
@@ -92,7 +113,7 @@ def gap_stats(series, now, window_h):
     intervals = sorted(b - a for a, b in zip(ts, ts[1:]))
     tol = max(3 * intervals[len(intervals) // 2], 900)
     pts = [start] + ts + [now]
-    diffs = [b - a for a, b in zip(pts, pts[1:])]
+    diffs = [(b - a) - quiet_overlap_s(a, b, quiet) for a, b in zip(pts, pts[1:])]
     return sum(d for d in diffs if d > tol) / (window_h * 3600), max(diffs)
 
 
@@ -117,6 +138,12 @@ def tr(lang):
 
 
 def evaluate(i, h, lang="de"):
+    """Findings of one inverter without the rules switched off in h["disabled_rules"]."""
+    off = set(h.get("disabled_rules") or [])
+    return [f for f in _evaluate(i, h, lang) if f[0] not in off]
+
+
+def _evaluate(i, h, lang="de"):
     """i: inputs of one inverter, h: health config. Returns [(rule, detail)].
 
     i keys: now, online, station_status, collection_time, series [(t, soc)], pv [W], load [W], battery [W],
@@ -146,7 +173,7 @@ def evaluate(i, h, lang="de"):
     if not series:
         out.append(("no_data", t["no_history"] % h["window_hours"]))
         return out
-    share, longest = gap_stats(series, i["now"], h["window_hours"])
+    share, longest = gap_stats(series, i["now"], h["window_hours"], h.get("conn_quiet_hours"))
     if share >= h.get("conn_missing_share", 0.10) or longest >= h.get("conn_max_gap_min", 60) * 60:
         out.append(("unstable_connection", t["conn"] % (share * 100, h["window_hours"], longest / 60)))
     socs = [v for _, v in series]

@@ -418,10 +418,13 @@ def notify(entries, text, cfg, secrets, today, daily):
     path = ROOT / "state" / "_mail.json"
     st = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
     current = mailer.open_keys(entries)
-    new = mailer.new_keys(st["open"], current) if st else []  # first run: nothing counts as new
+    alerted = (st or {}).get("alerted", {})
+    cutoff = time.time() - m.get("realert_days", 3) * 86400
+    # first run: nothing counts as new; a finding mailed within realert_days (flapping on/off) is not announced again
+    new = [k for k in (mailer.new_keys(st["open"], current) if st else []) if alerted.get(k, 0) < cutoff]
     send_daily = daily and (not st or st.get("last_daily") != today)
     if not (send_daily or new):
-        path.write_text(json.dumps({"open": current, "last_daily": (st or {}).get("last_daily")}), encoding="utf-8")
+        path.write_text(json.dumps({"open": current, "last_daily": (st or {}).get("last_daily"), "alerted": alerted}), encoding="utf-8")
         return
     lang = cfg.get("report_language", "de")
     subject, body = mailer.build(entries, current, new, text, lang, send_daily)
@@ -431,7 +434,10 @@ def notify(entries, text, cfg, secrets, today, daily):
         log.warning("mail not sent: %s: %s", type(e).__name__, str(e)[:150])
         return
     log.info("mail sent to %s: %s", ", ".join(m["to"]), subject)
-    path.write_text(json.dumps({"open": current, "last_daily": today if send_daily else (st or {}).get("last_daily")}), encoding="utf-8")
+    now_s = time.time()
+    alerted = {k: t for k, t in {**alerted, **{k: now_s for k in new}}.items() if t > now_s - 30 * 86400}
+    path.write_text(json.dumps({"open": current, "last_daily": today if send_daily else (st or {}).get("last_daily"),
+                                "alerted": alerted}), encoding="utf-8")
 
 
 def run_health(units, stations, tok, cfg, today, fleet_units=None, partial=False, secrets=None, daily=False):
