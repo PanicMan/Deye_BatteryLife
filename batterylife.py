@@ -463,7 +463,8 @@ def run_health(units, stations, tok, cfg, today, fleet_units=None, partial=False
         lt = latest.get(sn, {})
         inp = {"now": now, "online": u["online"], "station_status": u["station_status"], "series": [], "pv": [], "load": [],
                "battery": [], "soc_now": lt.get("soc"), "bms_soc": lt.get("bms"), "busy_streak": state.get("busy_streak", 0),
-               "alerts": [], "targets": state.get("targets", []), "device_state": lt.get("state"), "battery_voltage": lt.get("volt"),
+               "alerts": [], "targets": [] if u["station_id"] in cfg["blacklist"] else state.get("targets", []),  # blacklisted: we set no target, an old one must not trigger below_target
+               "device_state": lt.get("state"), "battery_voltage": lt.get("volt"),
                "collection_time": lt.get("time") or u.get("collection_time"),
                "floor": (state["shutdown"] + cfg["min_soc_offset_over_shutdown"]) if "shutdown" in state else None}
         try:
